@@ -1,0 +1,477 @@
+
+
+#Predicting Survival On Titanic DataSet using Logistic Rgeression
+#Import Libraries
+import numpy as np
+import pandas as pd
+import seaborn as sb
+import matplotlib.pyplot as plt
+import sklearn
+
+from pandas import Series, DataFrame
+from pylab import rcParams
+from sklearn import preprocessing
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_predict
+
+from sklearn import metrics
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import precision_score, recall_score
+
+#Set our plot parameters
+%matplotlib inline
+rcParams['figure.figsize'] = 5, 4
+sb.set_style('whitegrid')
+
+#Importing Data 
+address = 'C:\\Users\\seyi.aideyan\\Documents\\DS\\Python\\titanic-data.csv'
+titanic_training = pd.read_csv(address)
+#Labelling Columns
+titanic_training.columns = ['PassengerId', 'Survived', 'Pclass', 'Name', 'Sex', 'Age', 'SibSp', 'Parch', 'Ticket', 'Fare', 'Cabin', 'Embarked']
+#printing first 5 rows
+print(titanic_training.head())
+
+   PassengerId  Survived  Pclass  \
+0            1         0       3   
+1            2         1       1   
+2            3         1       3   
+3            4         1       1   
+4            5         0       3   
+
+                                                Name     Sex   Age  SibSp  \
+0                            Braund, Mr. Owen Harris    male  22.0      1   
+1  Cumings, Mrs. John Bradley (Florence Briggs Th...  female  38.0      1   
+2                             Heikkinen, Miss. Laina  female  26.0      0   
+3       Futrelle, Mrs. Jacques Heath (Lily May Peel)  female  35.0      1   
+4                           Allen, Mr. William Henry    male  35.0      0   
+
+   Parch            Ticket     Fare Cabin Embarked  
+0      0         A/5 21171   7.2500   NaN        S  
+1      0          PC 17599  71.2833   C85        C  
+2      0  STON/O2. 3101282   7.9250   NaN        S  
+3      0            113803  53.1000  C123        S  
+4      0            373450   8.0500   NaN        S  
+
+print(titanic_training.info())
+"""VARIABLE DESCRIPTIONS
+
+Survived - Survival (0 = No; 1 = Yes)
+Pclass - Passenger Class (1 = 1st; 2 = 2nd; 3 = 3rd)
+Name - Name
+Sex - Sex
+Age - Age
+SibSp - Number of Siblings/Spouses Aboard
+Parch - Number of Parents/Children Aboard
+Ticket - Ticket Number
+Fare - Passenger Fare (British pound)
+Cabin - Cabin
+Embarked - Port of Embarkation (C = Cherbourg, France; Q = Queenstown, UK; S = Southampton - Cobh, Ireland)"""
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 891 entries, 0 to 890
+Data columns (total 12 columns):
+PassengerId    891 non-null int64
+Survived       891 non-null int64
+Pclass         891 non-null int64
+Name           891 non-null object
+Sex            891 non-null object
+Age            714 non-null float64
+SibSp          891 non-null int64
+Parch          891 non-null int64
+Ticket         891 non-null object
+Fare           891 non-null float64
+Cabin          204 non-null object
+Embarked       889 non-null object
+dtypes: float64(2), int64(5), object(5)
+memory usage: 83.7+ KB
+None
+
+'VARIABLE DESCRIPTIONS\n\nSurvived - Survival (0 = No; 1 = Yes)\nPclass - Passenger Class (1 = 1st; 2 = 2nd; 3 = 3rd)\nName - Name\nSex - Sex\nAge - Age\nSibSp - Number of Siblings/Spouses Aboard\nParch - Number of Parents/Children Aboard\nTicket - Ticket Number\nFare - Passenger Fare (British pound)\nCabin - Cabin\nEmbarked - Port of Embarkation (C = Cherbourg, France; Q = Queenstown, UK; S = Southampton - Cobh, Ireland)'
+
+#Since we are trying to predict survival on the titanic, our Target variable is the Survived column
+#Our prediction should be binary since a passanger either survives or dies(1s & 0s)
+#We can use the count plot to check if our target variable is binary
+sb.countplot(x='Survived', data=titanic_training, palette='hls')
+
+<matplotlib.axes._subplots.AxesSubplot at 0x154aaca5c48>
+
+#Check for missing values
+titanic_training.isnull().sum()
+
+PassengerId      0
+Survived         0
+Pclass           0
+Name             0
+Sex              0
+Age            177
+SibSp            0
+Parch            0
+Ticket           0
+Fare             0
+Cabin          687
+Embarked         2
+dtype: int64
+
+#There are 177 & 687 missing values in the Age and Cabin variables respectively. 2 missing values in the Embarked variable
+titanic_training.describe()
+
+	PassengerId 	Survived 	Pclass 	Age 	SibSp 	Parch 	Fare
+count 	891.000000 	891.000000 	891.000000 	714.000000 	891.000000 	891.000000 	891.000000
+mean 	446.000000 	0.383838 	2.308642 	29.699118 	0.523008 	0.381594 	32.204208
+std 	257.353842 	0.486592 	0.836071 	14.526497 	1.102743 	0.806057 	49.693429
+min 	1.000000 	0.000000 	1.000000 	0.420000 	0.000000 	0.000000 	0.000000
+25% 	223.500000 	0.000000 	2.000000 	20.125000 	0.000000 	0.000000 	7.910400
+50% 	446.000000 	0.000000 	3.000000 	28.000000 	0.000000 	0.000000 	14.454200
+75% 	668.500000 	1.000000 	3.000000 	38.000000 	1.000000 	0.000000 	31.000000
+max 	891.000000 	1.000000 	3.000000 	80.000000 	8.000000 	6.000000 	512.329200
+
+#Taking care of missing Values
+#First we will drop all variables that are irrelevant to our prediction
+titanic_training[['Cabin']]
+#77% of the Cabin values are missing so we will drop the variable entirely
+
+	Cabin
+0 	NaN
+1 	C85
+2 	NaN
+3 	C123
+4 	NaN
+... 	...
+886 	NaN
+887 	B42
+888 	NaN
+889 	C148
+890 	NaN
+
+891 rows × 1 columns
+
+#We will also drop the Name and Ticket variable since Passenger name and ticket number are irrelevant for this prediction
+titanic_data = titanic_training.drop(['Name', 'Ticket', 'Cabin'], axis=1)
+titanic_data.head()
+
+	PassengerId 	Survived 	Pclass 	Sex 	Age 	SibSp 	Parch 	Fare 	Embarked
+0 	1 	0 	3 	male 	22.0 	1 	0 	7.2500 	S
+1 	2 	1 	1 	female 	38.0 	1 	0 	71.2833 	C
+2 	3 	1 	3 	female 	26.0 	0 	0 	7.9250 	S
+3 	4 	1 	1 	female 	35.0 	1 	0 	53.1000 	S
+4 	5 	0 	3 	male 	35.0 	0 	0 	8.0500 	S
+
+#Imputting Missing Age Values
+#Plotting the Age and Parch(No of Parents/Children on board) values on a box plot
+sb.boxplot(x='Parch', y='Age', data=titanic_data, palette='hls')
+
+<matplotlib.axes._subplots.AxesSubplot at 0x154aa3370c8>
+
+#On average, passengers less than 20 were more likely to have 2 relatives(likely parents)
+#Passengers above 40(median value above 40) were more likely to have atleast 4 relatives
+#Checking average age per parch category 
+Parch_groups = titanic_data.groupby(titanic_data['Parch'])
+Parch_groups.mean()
+
+	PassengerId 	Survived 	Pclass 	Age 	SibSp 	Fare
+Parch 						
+0 	445.255162 	0.343658 	2.321534 	32.178503 	0.237463 	25.586774
+1 	465.110169 	0.550847 	2.203390 	24.422000 	1.084746 	46.778180
+2 	416.662500 	0.500000 	2.275000 	17.216912 	2.062500 	64.337604
+3 	579.200000 	0.600000 	2.600000 	33.200000 	1.000000 	25.951660
+4 	384.000000 	0.000000 	2.500000 	44.500000 	0.750000 	84.968750
+5 	435.200000 	0.200000 	3.000000 	39.200000 	0.600000 	32.550000
+6 	679.000000 	0.000000 	3.000000 	43.000000 	1.000000 	46.900000
+
+#Inputing missing age values based on Parch
+def age_approx(cols):
+    Age = cols[0]
+    Parch = cols[1]
+    
+    if pd.isnull(Age):
+        if Parch == 0:
+            return 32
+        elif Parch == 1:
+            return 24
+        elif Parch == 2:
+            return 17
+        elif Parch == 3:
+            return 33
+        elif Parch == 4:
+            return 45
+        else:
+            return 30
+        
+    else:
+        return Age
+#Above we wrote a function age_approx that returns an Age value based on the Parch category
+#Remember, this is based on the average age per number as Parch as seen from our boxplot and Parch_groups
+
+#Applying the age_approx function to our dataset
+titanic_data['Age']= titanic_data[['Age', 'Parch']].apply(age_approx, axis=1)
+titanic_data.isnull().sum()
+
+PassengerId    0
+Survived       0
+Pclass         0
+Sex            0
+Age            0
+SibSp          0
+Parch          0
+Fare           0
+Embarked       2
+dtype: int64
+
+#Drop missing embarked values
+titanic_data.dropna(inplace=True)
+#Reset index
+titanic_data.reset_index(inplace=True, drop=True)
+
+print(titanic_data.info())
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 889 entries, 0 to 888
+Data columns (total 9 columns):
+PassengerId    889 non-null int64
+Survived       889 non-null int64
+Pclass         889 non-null int64
+Sex            889 non-null object
+Age            889 non-null float64
+SibSp          889 non-null int64
+Parch          889 non-null int64
+Fare           889 non-null float64
+Embarked       889 non-null object
+dtypes: float64(2), int64(5), object(2)
+memory usage: 62.6+ KB
+None
+
+#Converting Categorical variables to a dummy indicator
+titanic_data.head()
+
+	PassengerId 	Survived 	Pclass 	Sex 	Age 	SibSp 	Parch 	Fare 	Embarked
+0 	1 	0 	3 	male 	22.0 	1 	0 	7.2500 	S
+1 	2 	1 	1 	female 	38.0 	1 	0 	71.2833 	C
+2 	3 	1 	3 	female 	26.0 	0 	0 	7.9250 	S
+3 	4 	1 	1 	female 	35.0 	1 	0 	53.1000 	S
+4 	5 	0 	3 	male 	35.0 	0 	0 	8.0500 	S
+
+#We will convert the Sex variable using the LabelEncoder
+from sklearn.preprocessing import LabelEncoder
+#Instantiate LabelEncoder()
+label_encoder =LabelEncoder()
+gender_cat=titanic_data['Sex']
+gender_encoded=label_encoder.fit_transform(gender_cat)
+gender_encoded[:5]
+
+array([1, 0, 0, 0, 1])
+
+#1 = Male
+#0 = Female
+#Let's create a gender data frame using the DataFrame Constructor
+gender_DF =pd.DataFrame(gender_encoded, columns=['male_gender'])
+gender_DF.head()
+
+	male_gender
+0 	1
+1 	0
+2 	0
+3 	0
+4 	1
+
+#Converting Embarked variable using the label Encoder
+embarked_cat=titanic_data['Embarked']
+embarker_encoded=label_encoder.fit_transform(embarked_cat)
+embarker_encoded[0:100]
+#We will use one hot encoder to create binary values for the Embarked category
+from sklearn.preprocessing import OneHotEncoder
+binary_encoder = OneHotEncoder(categories='auto')
+#Ensure we are generating columns
+#Reshaping as a single column and output a column array
+embarked_1hot = binary_encoder.fit_transform(embarker_encoded.reshape(-1,1))
+#Creating a matrix array
+embarked_1hot_mat = embarked_1hot.toarray()
+#Converting to a DataFRame
+embarked_DF = pd.DataFrame(embarked_1hot_mat,columns=['C','Q','D'])
+embarked_DF.head()
+
+	C 	Q 	D
+0 	0.0 	0.0 	1.0
+1 	1.0 	0.0 	0.0
+2 	0.0 	0.0 	1.0
+3 	0.0 	0.0 	1.0
+4 	0.0 	0.0 	1.0
+
+#Drop the Sex and Embarked Columns from the titanic dataset
+titanic_data.drop(['Sex','Embarked'], axis=1, inplace=True)
+titanic_data.head()
+
+	PassengerId 	Survived 	Pclass 	Age 	SibSp 	Parch 	Fare
+0 	1 	0 	3 	22.0 	1 	0 	7.2500
+1 	2 	1 	1 	38.0 	1 	0 	71.2833
+2 	3 	1 	3 	26.0 	0 	0 	7.9250
+3 	4 	1 	1 	35.0 	1 	0 	53.1000
+4 	5 	0 	3 	35.0 	0 	0 	8.0500
+
+#Create a new data frame and add the encoded variables
+titanic_dmy =pd.concat([titanic_data, gender_DF, embarked_DF], axis=1, verify_integrity=True).astype(float)
+titanic_dmy[:5]
+
+	PassengerId 	Survived 	Pclass 	Age 	SibSp 	Parch 	Fare 	male_gender 	C 	Q 	D
+0 	1.0 	0.0 	3.0 	22.0 	1.0 	0.0 	7.2500 	1.0 	0.0 	0.0 	1.0
+1 	2.0 	1.0 	1.0 	38.0 	1.0 	0.0 	71.2833 	0.0 	1.0 	0.0 	0.0
+2 	3.0 	1.0 	3.0 	26.0 	0.0 	0.0 	7.9250 	0.0 	0.0 	0.0 	1.0
+3 	4.0 	1.0 	1.0 	35.0 	1.0 	0.0 	53.1000 	0.0 	0.0 	0.0 	1.0
+4 	5.0 	0.0 	3.0 	35.0 	0.0 	0.0 	8.0500 	1.0 	0.0 	0.0 	1.0
+
+#Checking for independence between features(multicollinearity)
+sb.heatmap(titanic_dmy.corr())
+
+<matplotlib.axes._subplots.AxesSubplot at 0x154abad6fc8>
+
+#There's a very strong negative correlation between PClass and Fare
+#We will use only one of the variables, in this case Pclass but we will will drop both and create a dummy variable for Pclass
+titanic_dmy.drop(['Fare','Pclass'], axis = 1, inplace=True)
+titanic_dmy.head()
+
+	PassengerId 	Survived 	Age 	SibSp 	Parch 	male_gender 	C 	Q 	D
+0 	1.0 	0.0 	22.0 	1.0 	0.0 	1.0 	0.0 	0.0 	1.0
+1 	2.0 	1.0 	38.0 	1.0 	0.0 	0.0 	1.0 	0.0 	0.0
+2 	3.0 	1.0 	26.0 	0.0 	0.0 	0.0 	0.0 	0.0 	1.0
+3 	4.0 	1.0 	35.0 	1.0 	0.0 	0.0 	0.0 	0.0 	1.0
+4 	5.0 	0.0 	35.0 	0.0 	0.0 	1.0 	0.0 	0.0 	1.0
+
+#Converting Pclass variable using the label Encoder
+pclass_cat=titanic_data['Pclass']
+pclass_encoded=label_encoder.fit_transform(pclass_cat)
+pclass_encoded[0:100]
+
+array([2, 0, 2, 0, 2, 2, 0, 2, 2, 1, 2, 0, 2, 2, 2, 1, 2, 1, 2, 2, 1, 1,
+       2, 0, 2, 2, 2, 0, 2, 2, 0, 0, 2, 1, 0, 0, 2, 2, 2, 2, 2, 1, 2, 1,
+       2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 0, 1, 2, 1, 2, 2, 0, 2, 0, 2, 1,
+       2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 0, 1, 2, 2, 2, 0,
+       2, 2, 2, 0, 2, 2, 2, 0, 0, 1, 1, 2], dtype=int64)
+
+#We will use one hot encoder to create binary values for the Pclass category
+bin_encoder = OneHotEncoder(categories='auto')
+#Ensure we are generating columns
+#Reshaping as a single column and output a column array
+pclass_1hot = bin_encoder.fit_transform(pclass_encoded.reshape(-1,1))
+#Creating a matrix array
+pclass_1hot_mat = pclass_1hot.toarray()
+#Converting to a DataFRame
+pclass_DF = pd.DataFrame(embarked_1hot_mat,columns=['Pclass1','Pclass2','Pclass3'])
+pclass_DF.head()
+
+	Pclass1 	Pclass2 	Pclass3
+0 	0.0 	0.0 	1.0
+1 	1.0 	0.0 	0.0
+2 	0.0 	0.0 	1.0
+3 	0.0 	0.0 	1.0
+4 	0.0 	0.0 	1.0
+
+#Create a new data frame and add the encoded variables
+titanic_dmy1 =pd.concat([titanic_dmy, pclass_DF], axis=1, verify_integrity=True).astype(float)
+titanic_dmy1[:5]
+
+	PassengerId 	Survived 	Age 	SibSp 	Parch 	male_gender 	C 	Q 	D 	Pclass1 	Pclass2 	Pclass3
+0 	1.0 	0.0 	22.0 	1.0 	0.0 	1.0 	0.0 	0.0 	1.0 	0.0 	0.0 	1.0
+1 	2.0 	1.0 	38.0 	1.0 	0.0 	0.0 	1.0 	0.0 	0.0 	1.0 	0.0 	0.0
+2 	3.0 	1.0 	26.0 	0.0 	0.0 	0.0 	0.0 	0.0 	1.0 	0.0 	0.0 	1.0
+3 	4.0 	1.0 	35.0 	1.0 	0.0 	0.0 	0.0 	0.0 	1.0 	0.0 	0.0 	1.0
+4 	5.0 	0.0 	35.0 	0.0 	0.0 	1.0 	0.0 	0.0 	1.0 	0.0 	0.0 	1.0
+
+#Checking that your dataset size is sufficient
+titanic_dmy1.info()
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 889 entries, 0 to 888
+Data columns (total 12 columns):
+PassengerId    889 non-null float64
+Survived       889 non-null float64
+Age            889 non-null float64
+SibSp          889 non-null float64
+Parch          889 non-null float64
+male_gender    889 non-null float64
+C              889 non-null float64
+Q              889 non-null float64
+D              889 non-null float64
+Pclass1        889 non-null float64
+Pclass2        889 non-null float64
+Pclass3        889 non-null float64
+dtypes: float64(12)
+memory usage: 83.5 KB
+
+#Splitting Data Set into test and training dat
+X_train, X_test, y_train, y_test = train_test_split(titanic_dmy1.drop('Survived', axis = 1), 
+                                                    titanic_dmy1['Survived'],test_size=0.2, random_state=200)
+
+print(X_train.shape)
+print(y_train.shape)
+
+(711, 11)
+(711,)
+
+y_train[:5]
+
+719    1.0
+165    1.0
+879    0.0
+451    0.0
+181    0.0
+Name: Survived, dtype: float64
+
+#Deploying and evaluating the model
+#Instatiate our Logistic Regression model
+LogReg =LogisticRegression(solver='liblinear')
+LogReg.fit(X_train, y_train)
+
+LogisticRegression(C=1.0, class_weight=None, dual=False, fit_intercept=True,
+                   intercept_scaling=1, l1_ratio=None, max_iter=100,
+                   multi_class='warn', n_jobs=None, penalty='l2',
+                   random_state=None, solver='liblinear', tol=0.0001, verbose=0,
+                   warm_start=False)
+
+#Predicting
+y_pred =LogReg.predict(X_test)
+
+#Model Evaluation
+#Classification report without cross-validation
+print(classification_report(y_test, y_pred))
+
+              precision    recall  f1-score   support
+
+         0.0       0.83      0.88      0.85       109
+         1.0       0.79      0.71      0.75        69
+
+    accuracy                           0.81       178
+   macro avg       0.81      0.80      0.80       178
+weighted avg       0.81      0.81      0.81       178
+
+#K-fold cross-validation & confusion matrices
+y_train_pred = cross_val_predict(LogReg,X_train,y_train, cv=5)
+confusion_matrix(y_train, y_train_pred)
+
+array([[377,  63],
+       [ 91, 180]], dtype=int64)
+
+precision_score(y_train, y_train_pred)
+
+0.7407407407407407
+
+from sklearn.metrics import accuracy_score
+accuracy = accuracy_score(y_test, y_pred)
+accuracy
+
+0.8146067415730337
+
+#Making a test prediction
+titanic_dmy1[863:864]
+
+	PassengerId 	Survived 	Age 	SibSp 	Parch 	male_gender 	C 	Q 	D 	Pclass1 	Pclass2 	Pclass3
+863 	866.0 	1.0 	42.0 	0.0 	0.0 	0.0 	0.0 	0.0 	1.0 	0.0 	0.0 	1.0
+
+test_passenger = np.array([866, 40,0,0,0,0,0,1,0,0,1]).reshape(1,-1)
+print(LogReg.predict(test_passenger))
+print(LogReg.predict_proba(test_passenger))
+
+[1.]
+[[0.26190637 0.73809363]]
+
