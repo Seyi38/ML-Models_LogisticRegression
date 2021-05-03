@@ -163,7 +163,6 @@ titanic_data.head()
 #Plotting the Age and Parch(No of Parents/Children on board) values on a box plot
 sb.boxplot(x='Parch', y='Age', data=titanic_data, palette='hls')
 
-<matplotlib.axes._subplots.AxesSubplot at 0x154aa3370c8>
 
 #On average, passengers less than 20 were more likely to have 2 relatives(likely parents)
 #Passengers above 40(median value above 40) were more likely to have atleast 4 relatives
